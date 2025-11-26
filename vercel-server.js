@@ -72,5 +72,10 @@ app.get("/tile", async (req, res) => {
   }
 });
 
+// Add root endpoint
+app.get("/", (req, res) => {
+  res.send("Tile server operational");
+});
+
 // Vercel serverless function handler
 export default app;
