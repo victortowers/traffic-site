@@ -1,10 +1,7 @@
-const express = require('express');
 const { createClient } = require('@vercel/kv');
 
-// Environment variables
 const API_KEY = process.env.TOMTOM_API_KEY;
 
-// KV client (optional)
 let kv = null;
 if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
   kv = createClient({
@@ -15,17 +12,7 @@ if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
   console.warn('KV_REST_API_URL or KV_REST_API_TOKEN not set; caching disabled.');
 }
 
-// Request coalescing
 const activeDownloads = new Map();
-
-function latLonToTile(lat, lon, z) {
-  const x = Math.floor(((lon + 180) / 360) * Math.pow(2, z));
-  const y = Math.floor(
-    ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) *
-      Math.pow(2, z)
-  );
-  return { x, y };
-}
 
 module.exports = async function handler(req, res) {
   const { method, url, query } = req;
@@ -39,17 +26,21 @@ module.exports = async function handler(req, res) {
 
   // Tile endpoint
   if (method === 'GET' && url.startsWith('/tile')) {
-    const lat = parseFloat(query.lat);
-    const lon = parseFloat(query.lon);
-    const z = parseInt(query.z || '13');
+    const x = parseInt(query.x, 10);
+    const y = parseInt(query.y, 10);
+    const z = parseInt(query.z, 10);
 
-    if (isNaN(lat) || isNaN(lon) || isNaN(z)) {
+    if (
+      isNaN(x) || !Number.isInteger(x) ||
+      isNaN(y) || !Number.isInteger(y) ||
+      isNaN(z) || !Number.isInteger(z)
+    ) {
       res.statusCode = 400;
-      res.end('Invalid lat/lon/z');
+      res.end('Invalid or missing x, y, z query parameters');
       return;
     }
 
-    const cacheKey = `tile:${z}_${lat}_${lon}`;
+    const cacheKey = `tile:${z}_${x}_${y}`;
 
     try {
       // Cache lookup
@@ -71,7 +62,6 @@ module.exports = async function handler(req, res) {
       const waiters = [];
       activeDownloads.set(cacheKey, waiters);
 
-      const { x, y } = latLonToTile(lat, lon, z);
       const tileUrl = `https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.png?key=${API_KEY}`;
 
       const fetchModule = await import('node-fetch');
