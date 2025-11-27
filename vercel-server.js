@@ -1,15 +1,21 @@
 const express = require('express');
 const { createClient } = require('@vercel/kv');
 
+// Environment variables
 const API_KEY = process.env.TOMTOM_API_KEY;
 
-// Initialize Vercel KV client
-const kv = createClient({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-});
+// KV client (optional)
+let kv = null;
+if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+  kv = createClient({
+    url: process.env.KV_REST_API_URL,
+    token: process.env.KV_REST_API_TOKEN,
+  });
+} else {
+  console.warn('KV_REST_API_URL or KV_REST_API_TOKEN not set; caching disabled.');
+}
 
-// Request coalescing to prevent duplicate downloads
+// Request coalescing
 const activeDownloads = new Map();
 
 function latLonToTile(lat, lon, z) {
@@ -46,13 +52,17 @@ module.exports = async function handler(req, res) {
     const cacheKey = `tile:${z}_${lat}_${lon}`;
 
     try {
-      const cachedTile = await kv.get(cacheKey);
-      if (cachedTile) {
-        res.setHeader('Content-Type', 'image/png');
-        res.end(Buffer.from(cachedTile, 'base64'));
-        return;
+      // Cache lookup
+      if (kv) {
+        const cached = await kv.get(cacheKey);
+        if (cached) {
+          res.setHeader('Content-Type', 'image/png');
+          res.end(Buffer.from(cached, 'base64'));
+          return;
+        }
       }
 
+      // Coalesce duplicate requests
       if (activeDownloads.has(cacheKey)) {
         await new Promise(resolve => activeDownloads.get(cacheKey).push(resolve));
         return;
@@ -64,7 +74,6 @@ module.exports = async function handler(req, res) {
       const { x, y } = latLonToTile(lat, lon, z);
       const tileUrl = `https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.png?key=${API_KEY}`;
 
-      // Dynamic import of node-fetch (ESM)
       const fetchModule = await import('node-fetch');
       const fetch = fetchModule.default;
 
@@ -74,7 +83,7 @@ module.exports = async function handler(req, res) {
       const buffer = await tileResp.arrayBuffer();
       const tileData = Buffer.from(buffer).toString('base64');
 
-      await kv.set(cacheKey, tileData, { ex: 300 });
+      if (kv) await kv.set(cacheKey, tileData, { ex: 300 });
 
       res.setHeader('Content-Type', 'image/png');
       res.end(Buffer.from(tileData, 'base64'));
