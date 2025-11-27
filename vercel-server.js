@@ -1,5 +1,5 @@
-import fetch from 'node-fetch';
-import { createClient } from '@vercel/kv';
+const express = require('express');
+const { createClient } = require('@vercel/kv');
 
 const API_KEY = process.env.TOMTOM_API_KEY;
 
@@ -21,12 +21,13 @@ function latLonToTile(lat, lon, z) {
   return { x, y };
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const { method, url, query } = req;
 
   // Root endpoint
   if (url === '/' || url === '/index.html') {
-    res.status(200).send('Tile server operational');
+    res.statusCode = 200;
+    res.end('Tile server operational');
     return;
   }
 
@@ -37,7 +38,8 @@ export default async function handler(req, res) {
     const z = parseInt(query.z || '13');
 
     if (isNaN(lat) || isNaN(lon) || isNaN(z)) {
-      res.status(400).send('Invalid lat/lon/z');
+      res.statusCode = 400;
+      res.end('Invalid lat/lon/z');
       return;
     }
 
@@ -47,7 +49,7 @@ export default async function handler(req, res) {
       const cachedTile = await kv.get(cacheKey);
       if (cachedTile) {
         res.setHeader('Content-Type', 'image/png');
-        res.send(Buffer.from(cachedTile, 'base64'));
+        res.end(Buffer.from(cachedTile, 'base64'));
         return;
       }
 
@@ -62,6 +64,10 @@ export default async function handler(req, res) {
       const { x, y } = latLonToTile(lat, lon, z);
       const tileUrl = `https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.png?key=${API_KEY}`;
 
+      // Dynamic import of node-fetch (ESM)
+      const fetchModule = await import('node-fetch');
+      const fetch = fetchModule.default;
+
       const tileResp = await fetch(tileUrl);
       if (!tileResp.ok) throw new Error(`Tile fetch failed: ${tileResp.status}`);
 
@@ -71,11 +77,12 @@ export default async function handler(req, res) {
       await kv.set(cacheKey, tileData, { ex: 300 });
 
       res.setHeader('Content-Type', 'image/png');
-      res.send(Buffer.from(tileData, 'base64'));
+      res.end(Buffer.from(tileData, 'base64'));
 
       for (const waiter of waiters) waiter();
     } catch (err) {
-      res.status(500).send(err.message);
+      res.statusCode = 500;
+      res.end(err.message);
     } finally {
       activeDownloads.delete(cacheKey);
     }
@@ -83,5 +90,6 @@ export default async function handler(req, res) {
   }
 
   // Fallback
-  res.status(404).send('Not found');
-}
+  res.statusCode = 404;
+  res.end('Not found');
+};
