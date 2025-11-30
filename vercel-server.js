@@ -1,5 +1,5 @@
-const { createClient } = require('@vercel/kv');
-const LRU = require('lru-cache');
+const { createClient } = import('@vercel/kv');
+const LRU = import('lru-cache');
 
 const API_KEY = process.env.TOMTOM_API_KEY;
 
