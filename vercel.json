@@ -7,12 +7,19 @@
   ],
   "routes": [
     {
+      "src": "/",
+      "dest": "vercel-server.mjs"
+    },
+    {
       "src": "/tile",
       "dest": "vercel-server.mjs"
     },
-
     {
       "src": "/cache-stats",
+      "dest": "vercel-server.mjs"
+    },
+    {
+      "src": "/(.*)",
       "dest": "vercel-server.mjs"
     }
   ]

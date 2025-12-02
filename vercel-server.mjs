@@ -53,4 +53,9 @@ app.get("/cache-stats", (req, res) => {
   });
 });
 
+// Root endpoint
+app.get("/", (req, res) => {
+  res.status(200).send("Success");
+});
+
 app.listen(30001, () => console.log("Tile server running on port 30001"));
