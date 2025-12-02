@@ -2,9 +2,9 @@
   "name": "vercel-tile-server",
   "version": "1.0.0",
   "type": "module",
-  "main": "vercel-server.js",
+  "main": "vercel-server.mjs",
   "scripts": {
-    "start": "node vercel-server.js"
+    "start": "node vercel-server.mjs"
   },
   "dependencies": {
     "@vercel/kv": "^1.0.0",
