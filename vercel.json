@@ -1,14 +1,19 @@
 {
   "builds": [
     {
-      "src": "vercel-server.js",
+      "src": "vercel-server.mjs",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/tile",
-      "dest": "vercel-server.js"
+      "dest": "vercel-server.mjs"
+    },
+
+    {
+      "src": "/cache-stats",
+      "dest": "vercel-server.mjs"
     }
   ]
 }
