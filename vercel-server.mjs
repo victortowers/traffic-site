@@ -20,18 +20,44 @@ function latLonToTile(lat, lon, z) {
 }
 
 app.get("/tile", async (req, res) => {
+  const z = parseInt(req.query.z || "13");
+  
+  // Check if tile coordinates (x, y) are provided
+  const x = parseInt(req.query.x);
+  const y = parseInt(req.query.y);
+  
+  // Check if GPS coordinates (lat, lon) are provided
   const lat = parseFloat(req.query.lat);
   const lon = parseFloat(req.query.lon);
-  const z = parseInt(req.query.z || "13");
+  
+  // Validate input
+  if (isNaN(z)) {
+    return res.status(400).send("Invalid z parameter");
+  }
+  
+  let cacheKey, tileX, tileY;
+  
+  if (!isNaN(x) && !isNaN(y)) {
+    // Use direct tile coordinates
+    tileX = x;
+    tileY = y;
+    cacheKey = `tile_${z}_${x}_${y}`;
+  } else if (!isNaN(lat) && !isNaN(lon)) {
+    // Convert GPS to tile coordinates
+    const { x: tileXFromLatLon, y: tileYFromLatLon } = latLonToTile(lat, lon, z);
+    tileX = tileXFromLatLon;
+    tileY = tileYFromLatLon;
+    cacheKey = `gps_${z}_${lat}_${lon}`;
+  } else {
+    return res.status(400).send("Please provide either x,y,z or lat,lon,z parameters");
+  }
 
-  if (isNaN(lat) || isNaN(lon) || isNaN(z)) return res.status(400).send("Invalid lat/lon/z");
-
-  const cacheKey = `${z}_${lat}_${lon}`;
+  // Check cache
   const cached = cache.get(cacheKey);
   if (cached) return res.type("png").send(cached);
 
-  const { x, y } = latLonToTile(lat, lon, z);
-  const tileUrl = `https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.png?key=${API_KEY}`;
+  // Fetch tile from TomTom API
+  const tileUrl = `https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${tileX}/${tileY}.png?key=${API_KEY}`;
 
   try {
     const tileResp = await fetch(tileUrl);
