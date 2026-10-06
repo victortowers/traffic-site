@@ -58,7 +58,7 @@ app.get("/tile", async (req, res) => {
 
   // Fetch tile from TomTom API
   
-  const tileUrl = `https://api.tomtom.com/maps/orbis/traffic/incidents/vector/tile/${z}/${tileX}/${tileY}?apiVersion=2&key=${API_KEY}&thickness=6`;
+  const tileUrl = `https://api.tomtom.com/maps/orbis/traffic/incidents/raster/tile/${z}/${tileX}/${tileY}?apiVersion=2&key=${API_KEY}&thickness=6`;
 
   try {
     const tileResp = await fetch(tileUrl);
